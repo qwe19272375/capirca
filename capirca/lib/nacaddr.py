@@ -374,6 +374,55 @@ def AddressListExclude(superset, excludes):
 
 ExcludeAddrs = AddressListExclude
 
+def setBit(int_type, offset):
+    return int_type | (1 << offset)
+
+
+def lowestSet(int_type):
+    low = (int_type & -int_type)
+    return low
+
+
+def _count_righthand_one_bits(number):
+  """Count the number of one bits on the right hand side.
+  Args:
+    number: an integer.
+    bits: maximum number of bits to count.
+  Returns:
+    The number of one bits on the right hand side of the number.
+  """
+  low = lowestSet(~number)
+  lowBit = -1
+  while low:
+    low >>= 1
+    lowBit += 1
+  return lowBit
+
+
+def WildcardMaskList(address, mask):
+  """Return a list of IPv4Network"""
+  mask_decimal = ipaddr.IPv4Address(mask)._ip
+  inverse_mask = _count_righthand_one_bits(mask_decimal)
+  base_mask = 32 - inverse_mask
+  ip_decimal = ipaddr.IPv4Address(address)._ip
+
+  other_list = []
+  remain_bits = mask_decimal >> inverse_mask
+  for i in range(base_mask):
+    if (remain_bits >> i) % 2:
+      other_list.append(i + inverse_mask)
+  ret_list = []
+  for i in range(2**len(other_list)):
+    base_ip = ip_decimal
+    for j in range(len(other_list)):
+      if (i >> j) % 2:
+        base_ip = setBit(base_ip, other_list[j])
+    ret_list.append(
+      ipaddr.IPv4Network(
+        str(ipaddr.IPv4Address(base_ip)) + '/' + str(base_mask)))
+  return ret_list
+
+
 
 class PrefixlenDiffInvalidError(ipaddr.NetmaskValueError):
   """Holdover from ipaddr v1."""
